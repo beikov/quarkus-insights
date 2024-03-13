@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.24.xsd"
+        objectQuotingStrategy="QUOTE_ONLY_RESERVED_WORDS">
+    <changeSet id="001-initial-01" author="Christian">
+        <sql>
+            create type product_variant_details as (description varchar(255), color varchar(255));
+        </sql>
+        <createSequence incrementBy="50" sequenceName="customers_seq" startValue="1"/>
+        <createSequence incrementBy="50" sequenceName="orders_seq" startValue="1"/>
+        <createSequence incrementBy="50" sequenceName="product_categories_seq" startValue="1"/>
+        <createSequence incrementBy="50" sequenceName="product_variants_seq" startValue="1"/>
+        <createSequence incrementBy="50" sequenceName="products_seq" startValue="1"/>
+        <createSequence incrementBy="50" sequenceName="subscriptions_seq" startValue="1"/>
+    </changeSet>
+    <changeSet id="001-initial-02" author="Christian">
+        <createTable tableName="customers">
+            <column name="id" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_customers"/>
+            </column>
+            <column name="first_name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_category_percents" type="numeric(38,2) array">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <!-- Use SQL until https://github.com/liquibase/liquibase/issues/1356 is fixed -->
+        <modifySql>
+            <replace replace="numeric(38, 2)" with="numeric(38,2) array"/>
+        </modifySql>
+    </changeSet>
+    <changeSet id="001-initial-03" author="Christian">
+        <createTable tableName="order_lines">
+            <column name="line_number" type="int">
+                <constraints primaryKey="true" primaryKeyName="pk_order_lines"/>
+            </column>
+            <column name="net_amount" type="numeric(38,2)"/>
+            <column name="net_currency" type="varchar(3)"/>
+            <column name="quantity" type="numeric(38,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_percent" type="numeric(38,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_amount" type="numeric(38,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_currency" type="varchar(3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="customer_id" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_order_lines"/>
+            </column>
+            <column name="order_id" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_order_lines"/>
+            </column>
+            <column name="product_variant_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet id="001-initial-04" author="Christian">
+        <createTable tableName="orders">
+            <column name="status" type="smallint">
+                <constraints nullable="false" checkConstraint="status between 0 and 3"/>
+            </column>
+            <column name="creation_date" type="timestamp(6) with time zone">
+                <constraints nullable="false"/>
+            </column>
+            <column name="id" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_orders"/>
+            </column>
+            <column name="customer_id" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_orders"/>
+            </column>
+            <column name="subscription_id" type="bigint"/>
+            <column name="created_from_address" type="inet">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <modifySql>
+            <append value="partition by hash (customer_id)"/>
+        </modifySql>
+        <!--
+            create table orders (
+                status                  smallint                    not null check (status between 0 and 3),
+                creation_date           timestamp(6) with time zone not null,
+                customer_id             bigint                      not null,
+                id                      bigint                      not null,
+                subscription_id         bigint,
+                created_from_address    inet                        not null,
+                constraint pk_subscriptions primary key (id, customer_id)
+            ) partition by hash (customer_id);
+        -->
+    </changeSet>
+    <changeSet id="001-initial-05" author="Christian">
+        <sql splitStatements="true" endDelimiter=";">
+            create table orders_1 partition of orders
+                for values with (modulus 3, remainder 0);
+
+            create table orders_2 partition of orders
+                for values with (modulus 3, remainder 1);
+
+            create table orders_3 partition of orders
+                for values with (modulus 3, remainder 2);
+        </sql>
+    </changeSet>
+    <changeSet id="001-initial-06" author="Christian">
+        <createTable tableName="product_categories">
+            <column name="id" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_product_categories"/>
+            </column>
+            <column name="parent_category_id" type="bigint"/>
+            <column name="name" type="varchar(255)"/>
+        </createTable>
+    </changeSet>
+    <changeSet id="001-initial-07" author="Christian">
+        <createTable tableName="product_variants">
+            <column name="price_amount" type="numeric(38,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="price_currency" type="varchar(3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="id" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_product_variants"/>
+            </column>
+            <column name="product_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="external_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="details" type="product_variant_details">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type_details" type="jsonb">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet id="001-initial-08" author="Christian">
+        <createTable tableName="products">
+            <column name="product_type" type="smallint">
+                <constraints nullable="false" checkConstraint="product_type between 0 and 3"/>
+            </column>
+            <column name="category_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="id" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_products"/>
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet id="001-initial-09" author="Christian">
+        <createTable tableName="subscription_items">
+            <column name="quantity" type="numeric(38,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="product_variant_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subscription_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet id="001-initial-10" author="Christian">
+        <createTable tableName="subscriptions">
+            <column name="creation_date" type="timestamp(6) with time zone">
+                <constraints nullable="false"/>
+            </column>
+            <column name="customer_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="id" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_subscriptions"/>
+            </column>
+            <column name="subscription_interval" type="interval second(0)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subscription_start" type="timestamp(6) with time zone">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <!-- Use SQL until https://github.com/liquibase/liquibase/issues/1886 is fixed -->
+        <modifySql>
+            <replace replace="SECOND(0)(0) second" with="second(0)"/>
+        </modifySql>
+        <!--
+            create table subscriptions (
+                creation_date         timestamp(6) with time zone not null,
+                customer_id           bigint                      not null,
+                id                    bigint                      not null,
+                subscription_interval interval second(0)          not null,
+                subscription_start    timestamp(6) with time zone not null,
+                constraint pk_subscriptions primary key (id)
+            )
+        -->
+    </changeSet>
+    <changeSet id="001-initial-11" author="Christian">
+        <addForeignKeyConstraint baseColumnNames="customer_id" baseTableName="orders"
+                                 constraintName="FK_ORDERS_ON_CUSTOMER" referencedColumnNames="id"
+                                 referencedTableName="customers"/>
+        <addForeignKeyConstraint baseColumnNames="subscription_id" baseTableName="orders"
+                                 constraintName="FK_ORDERS_ON_SUBSCRIPTION" referencedColumnNames="id"
+                                 referencedTableName="subscriptions"/>
+        <addForeignKeyConstraint baseColumnNames="category_id" baseTableName="products"
+                                 constraintName="FK_PRODUCTS_ON_CATEGORY" referencedColumnNames="id"
+                                 referencedTableName="product_categories"/>
+        <addForeignKeyConstraint baseColumnNames="parent_category_id" baseTableName="product_categories"
+                                 constraintName="FK_PRODUCT_CATEGORIES_ON_PARENTCATEGORY" referencedColumnNames="id"
+                                 referencedTableName="product_categories"/>
+        <addForeignKeyConstraint baseColumnNames="product_id" baseTableName="product_variants"
+                                 constraintName="FK_PRODUCT_VARIANTS_ON_PRODUCT" referencedColumnNames="id"
+                                 referencedTableName="products"/>
+        <addForeignKeyConstraint baseColumnNames="customer_id" baseTableName="subscriptions"
+                                 constraintName="FK_SUBSCRIPTIONS_ON_CUSTOMER" referencedColumnNames="id"
+                                 referencedTableName="customers"/>
+        <addForeignKeyConstraint baseColumnNames="order_id,customer_id" baseTableName="order_lines"
+                                 constraintName="FK_ORDER_LINES_ON_ORDER" referencedColumnNames="id,customer_id"
+                                 referencedTableName="orders"/>
+        <addForeignKeyConstraint baseColumnNames="product_variant_id" baseTableName="order_lines"
+                                 constraintName="FK_ORDER_LINES_ON_PRODUCT_VARIANTS" referencedColumnNames="id"
+                                 referencedTableName="product_variants"/>
+        <addForeignKeyConstraint baseColumnNames="subscription_id" baseTableName="subscription_items"
+                                 constraintName="FK_SUBSCRIPTION_ITEMS_ON_SUBSCRIPTION" referencedColumnNames="id"
+                                 referencedTableName="subscriptions"/>
+        <addForeignKeyConstraint baseColumnNames="product_variant_id" baseTableName="subscription_items"
+                                 constraintName="FK_SUBSCRIPTION_ITEMS_ON_PRODUCT_VARIANTS" referencedColumnNames="id"
+                                 referencedTableName="product_variants"/>
+    </changeSet>
+
+</databaseChangeLog>
