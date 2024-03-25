@@ -1,15 +1,11 @@
 package org.hibernate.examples.repository;
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 import org.hibernate.Session;
-import org.hibernate.annotations.processing.Find;
-import org.hibernate.annotations.processing.HQL;
 import org.hibernate.examples.entities.Article;
 import org.hibernate.examples.representation.SimilarArticle;
 import org.hibernate.examples.representation.SimilarArticles;
@@ -95,7 +91,7 @@ public class ArticleRepository {
 								    a2.url,
 								    \{function.name().toLowerCase( Locale.ROOT )}_distance(a1.embedding, a2.embedding) as similarity
 								)
-								from Article a1 join Article a2 on a1 <> a2
+								from Article a1 join Article a2 on a1.id > a2.id
 								where \{function.name().toLowerCase( Locale.ROOT )}_distance(a1.embedding, a2.embedding) < :threshold
 								order by similarity
 								""",
